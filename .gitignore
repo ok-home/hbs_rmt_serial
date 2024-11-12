@@ -1,0 +1,15 @@
+/.devcontainer
+/.vscode
+/README.md
+/build
+/mapx.bin
+/mapx.bin:Zone.Identifier
+/mapy.bin
+/mapy.bin:Zone.Identifier
+/read.bin
+/roi.bin
+/roi.bin:Zone.Identifier
+/sdkconfig
+/sdkconfig.ci
+/sdkconfig.defaults
+/sdkconfig.old
