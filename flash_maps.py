@@ -42,28 +42,28 @@ def main():
     # Retrieve info on data storage partition, this time identifying it by name.
     storage_mapx = PartitionName('mapx')
     storage_info = target.get_partition_info(storage_mapx)
-    print('Found data partition at offset 0x{:x} with size 0x{:x}'.format(storage_info.offset, storage_info.size))
+    print('Found data partition mapx at offset 0x{:x} with size 0x{:x}'.format(storage_info.offset, storage_info.size))
 
     storage_mapy = PartitionName('mapy')
     storage_info = target.get_partition_info(storage_mapy)
-    print('Found data partition at offset 0x{:x} with size 0x{:x}'.format(storage_info.offset, storage_info.size))
+    print('Found data partition mapy at offset 0x{:x} with size 0x{:x}'.format(storage_info.offset, storage_info.size))
 
     storage_roi = PartitionName('roi')
     storage_info = target.get_partition_info(storage_roi)
-    print('Found data partition at offset 0x{:x} with size 0x{:x}'.format(storage_info.offset, storage_info.size))
+    print('Found data partition roi at offset 0x{:x} with size 0x{:x}'.format(storage_info.offset, storage_info.size))
 
 
     # Write the contents of the created file to storage partition
     print('Writing to mapx partition')
     target.write_partition(storage_mapx, 'mapx.bin')
 
-    print('Writing to mapx partition')
+    print('Writing to mapy partition')
     target.write_partition(storage_mapy, 'mapy.bin')
 
-    print('Writing to mapx partition')
+    print('Writing to roi partition')
     target.write_partition(storage_roi, 'roi.bin')
 
-    # Example end and cleanup
+    # Example end 
     print('\nPartition tool operations performed successfully!')
 
 if __name__ == '__main__':
