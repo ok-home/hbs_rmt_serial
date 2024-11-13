@@ -24,13 +24,13 @@ void app_main(void)
 {
     ESP_LOGI(TAG, "Partitions Tool Example");
         // Find the partition map in the partition table
-    const esp_partition_t *partition_mapx = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, "storage");
+    const esp_partition_t *partition_mapx = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, "mapx");
     assert(partition != NULL);
     // Find the partition map in the partition table
-    const esp_partition_t *partition_mapy = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, "storage");
+    const esp_partition_t *partition_mapy = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, "mapy");
     assert(partition != NULL);
     // Find the partition map in the partition table
-    const esp_partition_t *partition_roi = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, "storage");
+    const esp_partition_t *partition_roi = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, "roi");
     assert(partition != NULL);
 
     const uint16_t *mapx_ptr;
