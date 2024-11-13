@@ -17,9 +17,9 @@ fi
 echo "Writing to mapx partition"
 $PARTTOOL_PY write_partition --partition-name=mapx --input mapx.bin
 echo "Writing to mapy partition"
-$PARTTOOL_PY write_partition --partition-name=mapx --input mapy.bin
+$PARTTOOL_PY write_partition --partition-name=mapy --input mapy.bin
 echo "Writing to roi partition"
-$PARTTOOL_PY write_partition --partition-name=mapx --input roi.bin
+$PARTTOOL_PY write_partition --partition-name=roi --input roi.bin
 
 # Example end and cleanup
 printf "\nPartition tool operations performed successfully\n"

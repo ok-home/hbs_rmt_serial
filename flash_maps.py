@@ -28,7 +28,6 @@ def main():
     PARTTOOL_DIR = os.path.join(COMPONENTS_PATH, 'partition_table')
 
     sys.path.append(PARTTOOL_DIR)
-    from gen_empty_partition import generate_blanked_file
     from parttool import PartitionName, PartitionType, ParttoolTarget
 
     parser = argparse.ArgumentParser('ESP-IDF Partitions Tool Example')
@@ -62,7 +61,7 @@ def main():
     target.write_partition(storage_mapy, 'mapy.bin')
 
     print('Writing to mapx partition')
-    target.write_partition(storage_mapx, 'roi.bin')
+    target.write_partition(storage_roi, 'roi.bin')
 
     # Example end and cleanup
     print('\nPartition tool operations performed successfully!')
