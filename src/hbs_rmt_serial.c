@@ -71,11 +71,29 @@ typedef struct
         uint16_t val; /*!< Equivalent unsigned value for the RMT item */
     };
 } rmt_item16_t;
+
+static uint16_t decode_hbs_bit_data(uint32_t hbs_data_bit) // decode from hbs bit stream to byte+parity
+{
+    uint16_t data_parity = 0;
+    hbs_data_bit = hbs_data_bit >> 1; // remove part of start bit
+    hbs_data_bit &= 0x3ffff; // remove part of stop bit
+    for ( int i=0 ; i < 9 ; i++) // 8 bit + parity
+    {
+        if((hbs_data_bit & 1) == 1 )
+        {
+            data_parity |= 1<<9;
+        }
+        hbs_data_bit  = hbs_data_bit >> 2;
+        data_parity = data_parity >> 1;
+    }
+}
+
 static void hbs_rx_packet_task(void *p)
 {
     size_t length = 0;
     RingbufHandle_t rb = NULL;
     rmt_item16_t *items = NULL;
+    uint32_t hbs_data_bit = 0;   // 22 bit from hbs
     hbs_item16_t data = {0};
     hbs_packet_t packet = {0};
     int cnt_bit = 0;  // wait start bit, bit count
@@ -106,7 +124,7 @@ static void hbs_rx_packet_task(void *p)
                 {
                     if (lvl == 0 && duration > 0 && duration < BIT_IN_WORD) // start bit
                     {
-                        data.val = 0;       // first  bits in byte
+                        hbs_data_bit = 0;       // first  bits in byte
                         cnt_bit = duration; // start bit + some bits=0
                     }
                     else
@@ -118,10 +136,10 @@ static void hbs_rx_packet_task(void *p)
                 {
                     for (; cnt_bit < BIT_IN_WORD - 1; cnt_bit++)
                     {
-                        data.val >>= 1;
-                        data.val |= lvl << (BIT_IN_WORD - 3); // 8 with cmd or parity check //BIT_IN_WORD-3
+                        hbs_data_bit >>= 1;
+                        hbs_data_bit |= lvl << (BIT_IN_WORD - 3); // 8 with cmd or parity check //BIT_IN_WORD-3
                     }
-                    packet.packet_data[cnt_byte].val = data.val;
+                    packet.packet_data[cnt_byte].val = decode_hbs_bit_data(hbs_data_bit);
                     cnt_byte++;
                     cnt_bit = 0; // wait next start bit
                 }
@@ -129,8 +147,8 @@ static void hbs_rx_packet_task(void *p)
                 {
                     for (int j = 0; j < duration; cnt_bit++, j++)
                     {
-                        data.val >>= 1;
-                        data.val |= lvl << (BIT_IN_WORD - 3); // 8 with cmd or parity check //BIT_IN_WORD-3
+                        hbs_data_bit >>= 1;
+                        hbs_data_bit |= lvl << (BIT_IN_WORD - 3); // 8 with cmd or parity check //BIT_IN_WORD-3
                     }
                 }
             }

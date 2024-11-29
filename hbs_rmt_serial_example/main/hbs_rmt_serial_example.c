@@ -128,7 +128,6 @@ void app_main(void)
             ESP_LOGI(TAG, "Send/Receive %d packet icnt=%d", cnt, icnt++);
             cnt = 0;
         }
-            mdb_hw_reset();
     }
 
 }
