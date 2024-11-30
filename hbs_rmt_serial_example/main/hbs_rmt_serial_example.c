@@ -28,7 +28,6 @@
 #define gpio_matrix_in(a, b, c) esp_rom_gpio_connect_in_signal(a, b, c)
 #define gpio_matrix_out(a, b, c, d) esp_rom_gpio_connect_out_signal(a, b, c, d)
 
-
 #define RMT_TX_GPIO (23)
 #define RMT_RX_GPIO (22)
 
@@ -36,7 +35,7 @@ static const char *TAG = "RMT TEST";
 hbs_packet_t send_packet =
     {
         .packet_hdr.packet_size = 26,
-        .packet_data = 
+        .packet_data =
             {
                 {.parity = 1, .data = 0x00},
                 {.parity = 0, .data = 0x00},
@@ -64,9 +63,7 @@ hbs_packet_t send_packet =
                 {.parity = 1, .data = 0x00},
                 {.parity = 1, .data = 0xff},
                 {.parity = 1, .data = 0x00},
-                }};
-
-
+            }};
 
 void app_main(void)
 {
@@ -85,7 +82,7 @@ void app_main(void)
 #endif
     hbs_init(RMT_RX_GPIO, RMT_TX_GPIO);
 #if DBG
-    //connect rx & tx pins without wires -> test only
+    // connect rx & tx pins without wires -> test only
     PIN_INPUT_ENABLE(GPIO_PIN_MUX_REG[RMT_TX_GPIO]);
     gpio_matrix_in(RMT_TX_GPIO, RMT_SIG_IN1_IDX, false);
 #endif
@@ -125,4 +122,3 @@ void app_main(void)
 #endif
     }
 }
-
