@@ -20,68 +20,56 @@
 #include "esp_clk_tree.h"
 #include <rom/ets_sys.h>
 
-#include "soft_serial_rmt.h"
+#include "hbs_rmt_serial.h"
+
+#include "soc/gpio_sig_map.h"
+#include "soc/gpio_periph.h"
+#include "soc/io_mux_reg.h"
+#define gpio_matrix_in(a, b, c) esp_rom_gpio_connect_in_signal(a, b, c)
+#define gpio_matrix_out(a, b, c, d) esp_rom_gpio_connect_out_signal(a, b, c, d)
+
 
 #define RMT_TX_GPIO (23)
 #define RMT_RX_GPIO (22)
 
 static const char *TAG = "RMT TEST";
-
-mdb_item16_t send_data[] =
+hbs_packet_t send_packet =
     {
-        {.cmd = 1, .data = 0xaa},
-        {.cmd = 0, .data = 0x1},
-        {.cmd = 0, .data = 0x10},
-        {.cmd = 0, .data = 0xff},
-        {.cmd = 1, .data = 0xff},
-        {.cmd = 0, .data = 0x00},
-        {.cmd = 0, .data = 0x0f},
-        {.cmd = 0, .data = 0xf0},
-        {.cmd = 0, .data = 0x30},
-        {.cmd = 0, .data = 0x03},
-        {.cmd = 0, .data = 0xe0},
-        {.cmd = 0, .data = 0x0e},
-        {.cmd = 1, .data = 0xc0},
-        {.cmd = 0, .data = 0x0c},
-        {.cmd = 1, .data = 0xcc},
-        {.cmd = 0, .data = 0xbb},
-        {.cmd = 0, .data = 0x33},
-        {.cmd = 1, .data = 0x77},
-        {.cmd = 0, .data = 0x88},
-        {.cmd = 0, .data = 0x11},
-        {.cmd = 1, .data = 0x0}};
-
-mdb_packet_t send_packet =
-    {
-        .packet_hdr.packet_size = 21,
-        .packet_data =
+        .packet_hdr.packet_size = 26,
+        .packet_data = 
             {
-                {.cmd = 1, .data = 0xaa},
-                {.cmd = 0, .data = 0x01},
-                {.cmd = 0, .data = 0x10},
-                {.cmd = 0, .data = 0xff},
-                {.cmd = 1, .data = 0xff},
-                {.cmd = 0, .data = 0x00},
-                {.cmd = 0, .data = 0x0f},
-                {.cmd = 0, .data = 0xf0},
-                {.cmd = 0, .data = 0x30},
-                {.cmd = 0, .data = 0x03},
-                {.cmd = 0, .data = 0xe0},
-                {.cmd = 0, .data = 0x0e},
-                {.cmd = 1, .data = 0xc0},
-                {.cmd = 0, .data = 0x0c},
-                {.cmd = 1, .data = 0xcc},
-                {.cmd = 0, .data = 0xbb},
-                {.cmd = 0, .data = 0x33},
-                {.cmd = 1, .data = 0x77},
-                {.cmd = 0, .data = 0x88},
-                {.cmd = 0, .data = 0x11},
-                {.cmd = 1, .data = 0x00}}};
+                {.parity = 1, .data = 0x00},
+                {.parity = 0, .data = 0x00},
+                {.parity = 0, .data = 0x10},
+                {.parity = 0, .data = 0xff},
+                {.parity = 1, .data = 0xff},
+                {.parity = 0, .data = 0x00},
+                {.parity = 0, .data = 0x0f},
+                {.parity = 0, .data = 0xf0},
+                {.parity = 0, .data = 0x30},
+                {.parity = 0, .data = 0x03},
+                {.parity = 0, .data = 0xe0},
+                {.parity = 0, .data = 0x0e},
+                {.parity = 1, .data = 0xc0},
+                {.parity = 0, .data = 0x0c},
+                {.parity = 1, .data = 0xcc},
+                {.parity = 0, .data = 0xbb},
+                {.parity = 0, .data = 0x33},
+                {.parity = 1, .data = 0x77},
+                {.parity = 0, .data = 0x88},
+                {.parity = 0, .data = 0x11},
+                {.parity = 1, .data = 0x00},
+                {.parity = 1, .data = 0x00},
+                {.parity = 1, .data = 0x00},
+                {.parity = 1, .data = 0x00},
+                {.parity = 1, .data = 0xff},
+                {.parity = 1, .data = 0x00},
+                }};
+
+
 
 void app_main(void)
-
 {
-
 #if DBG
 // dbg logic analyzer
 #include "logic_analyzer_ws_server.h"
@@ -95,23 +83,29 @@ void app_main(void)
     gpio_set_direction(RX_TEST_GPIO, GPIO_MODE_OUTPUT);
     //
 #endif
-    mdb_init(RMT_RX_GPIO, RMT_TX_GPIO);
-
-    mdb_packet_t rx_packet = {0};
+    hbs_init(RMT_RX_GPIO, RMT_TX_GPIO);
+#if DBG
+    //connect rx & tx pins without wires -> test only
+    PIN_INPUT_ENABLE(GPIO_PIN_MUX_REG[RMT_TX_GPIO]);
+    gpio_matrix_in(RMT_TX_GPIO, RMT_SIG_IN1_IDX, false);
+#endif
+    hbs_packet_t rx_packet = {0};
     int cnt = 0;
     int icnt = 0;
     int err_cnt = 0;
     while (1)
     {
-        //vTaskDelay(10);
+        vTaskDelay(1);
 #if DBG
         gpio_set_level(TX_TEST_GPIO, 1);
 #endif
-        mdb_tx_packet(&send_packet);
-        mdb_rx_packet(&rx_packet, portMAX_DELAY);
+        hbs_tx_packet(&send_packet);
+        hbs_rx_packet(&rx_packet, portMAX_DELAY);
 #if DBG
         gpio_set_level(TX_TEST_GPIO, 0);
 #endif
+
+#if 1
         if (send_packet.packet_hdr.packet_size != rx_packet.packet_hdr.packet_size)
             ESP_LOGE(TAG, "ERROR Size tx=%d rx=%d", send_packet.packet_hdr.packet_size, rx_packet.packet_hdr.packet_size);
         for (int i = 0; i < send_packet.packet_hdr.packet_size; i++)
@@ -128,6 +122,7 @@ void app_main(void)
             ESP_LOGI(TAG, "Send/Receive %d packet icnt=%d", cnt, icnt++);
             cnt = 0;
         }
+#endif
     }
-
 }
+

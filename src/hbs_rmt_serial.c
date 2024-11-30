@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "freertos/queue.h"
+#include "freertos/event_groups.h"
 #include "driver/rmt.h"
 
 #include "hbs_rmt_serial.h"
@@ -27,28 +28,27 @@ static const char *TAG = "HBS RMT";
  * 9600-1%+2% about 9500-9800 - hbs baud standart
  * tx baud calculate 80 000 000 / RMT_TX_DIV / TX_BIT_DIVIDER
  * rx bit divider should be a little more then max tx rate(9800)
- * RX_BIT_DIVIDER = ( 80 000 000/9800/RMT_RX_DIV ) = 100-102
+ * RX_BIT_DIVIDER = ( 80 000 000/19200/RMT_RX_DIV ) = 100-102
  * RMT_RX_IDLE_THRES may be  greater then (80 000 000/RX_BIT_DIVIDER/9500*11) = 1158(1200-2400)
  */
 
 #define RX_CHANNEL RMT_CHANNEL_1
-#define RMT_RX_DIV (80)          // 8
-#define RMT_RX_IDLE_THRES (2800) // 12000
+#define RMT_RX_DIV (40)          // 8
+#define RMT_RX_IDLE_THRES (5000) // 12000
 #define RX_BIT_DIVIDER (100)     // 1040
-// min duration on log  ( dur = 59 ) compensation = 104-59 = 45 
+// min duration on log  ( dur = 59 ) compensation = 104-59 = 45
 #define RX_PULSE_HI_LVL_DELAY_COMPENSATION (0)
 #define RX_PULSE_LOW_LVL_DELAY_COMPENSATION (0)
 #define RX_INVERT_LVL 0
 
-
 #define TX_CHANNEL RMT_CHANNEL_0
-// tx baud=80000000/80/104 = 9615 baud
-#define RMT_TX_DIV (80)      // 8 // esp32_hbs = 82
+// tx baud=80000000/40/104 = 19230 baud
+#define RMT_TX_DIV (40)      // 8 // esp32_hbs = 82
 #define TX_BIT_DIVIDER (104) // 1042 // esp32_hbs=100
 
-#define BIT_IN_WORD (22)    // -> for hsb start(2)+18 bit+stop(2) 
-                            // -> For hsb_rmt start(1 bit) + 20 bit (msb already 1, 16(8*2) bit data, 1(2) bit parity, lsb already 1 ) + stop(1 bit)
-                            // -> for data start(1 bit) + 9 bit + stop(1 bit)
+#define BIT_IN_WORD (22) // -> for hsb start(2)+18 bit+stop(2)
+                         // -> For hsb_rmt start(1 bit) + 20 bit (msb already 1, 16(8*2) bit data, 1(2) bit parity, lsb already 1 ) + stop(1 bit)
+                         // -> for data start(1 bit) + 9 bit + stop(1 bit)
 
 static QueueHandle_t hbs_rx_packet_queue;
 static QueueHandle_t hbs_tx_packet_queue;
@@ -76,16 +76,17 @@ static uint16_t decode_hbs_bit_data(uint32_t hbs_data_bit) // decode from hbs bi
 {
     uint16_t data_parity = 0;
     hbs_data_bit = hbs_data_bit >> 1; // remove part of start bit
-    hbs_data_bit &= 0x3ffff; // remove part of stop bit
-    for ( int i=0 ; i < 9 ; i++) // 8 bit + parity
+    hbs_data_bit &= 0x3ffff;          // remove part of stop bit
+    for (int i = 0; i < 9; i++)       // 8 bit + parity
     {
-        if((hbs_data_bit & 1) == 1 )
+        if ((hbs_data_bit & 1) == 1)
         {
-            data_parity |= 1<<9;
+            data_parity |= 1 << 9;
         }
-        hbs_data_bit  = hbs_data_bit >> 2;
+        hbs_data_bit = hbs_data_bit >> 2;
         data_parity = data_parity >> 1;
     }
+    return data_parity;
 }
 
 static void hbs_rx_packet_task(void *p)
@@ -93,8 +94,8 @@ static void hbs_rx_packet_task(void *p)
     size_t length = 0;
     RingbufHandle_t rb = NULL;
     rmt_item16_t *items = NULL;
-    uint32_t hbs_data_bit = 0;   // 22 bit from hbs
-    hbs_item16_t data = {0};
+    uint32_t hbs_data_bit = 0; // 22 bit from hbs
+    // hbs_item16_t data = {0};
     hbs_packet_t packet = {0};
     int cnt_bit = 0;  // wait start bit, bit count
     int cnt_byte = 0; // byte in packet
@@ -111,20 +112,18 @@ static void hbs_rx_packet_task(void *p)
             length /= 2; // one RMT = 2 Bytes
             for (int i = 0; i < length; i++)
             {
-                #if RX_INVERT_LVL
-                int lvl = (!items[i].level)&1; // invert lvl
-                #else
-                int lvl = (items[i].level)&1; 
-                #endif
-                int duration = (lvl==1) ? 
-                                        (items[i].duration + RX_PULSE_HI_LVL_DELAY_COMPENSATION) / RX_BIT_DIVIDER :
-                                        (items[i].duration - RX_PULSE_LOW_LVL_DELAY_COMPENSATION) / RX_BIT_DIVIDER ;
-                 //ESP_LOGI(TAG, "%d lvl=%d, bit_in=%d,dur=%d", i, lvl, duration, items[i].duration);
+#if RX_INVERT_LVL
+                int lvl = (!items[i].level) & 1; // invert lvl
+#else
+                int lvl = (items[i].level) & 1;
+#endif
+                int duration = (lvl == 1) ? (items[i].duration + RX_PULSE_HI_LVL_DELAY_COMPENSATION) / RX_BIT_DIVIDER : (items[i].duration - RX_PULSE_LOW_LVL_DELAY_COMPENSATION) / RX_BIT_DIVIDER;
+                // ESP_LOGI(TAG, "%d lvl=%d, bit_in=%d,dur=%d", i, lvl, duration, items[i].duration);
                 if (cnt_bit == 0) // start bit
                 {
                     if (lvl == 0 && duration > 0 && duration < BIT_IN_WORD) // start bit
                     {
-                        hbs_data_bit = 0;       // first  bits in byte
+                        hbs_data_bit = 0;   // first  bits in byte
                         cnt_bit = duration; // start bit + some bits=0
                     }
                     else
@@ -153,12 +152,12 @@ static void hbs_rx_packet_task(void *p)
                 }
             }
         }
+        packet.packet_hdr.packet_size = cnt_byte;
+        // ESP_LOGI(TAG, "all item converted %d byte ",cnt_byte);
+        xQueueSend(hbs_rx_packet_queue, &packet, portMAX_DELAY);
 #if DBG
         gpio_set_level(RX_TEST_GPIO, 0);
 #endif
-        packet.packet_hdr.packet_size = cnt_byte;
-         //ESP_LOGI(TAG, "all item converted %d byte ",cnt_byte);
-        xQueueSend(hbs_rx_packet_queue, &packet, portMAX_DELAY);
         cnt_byte = 0;
         cnt_bit = 0; // wait next start bit
         memset(&packet, 0, sizeof(packet));
@@ -169,19 +168,19 @@ static void hbs_rx_packet_task(void *p)
 static void hbs_item_to_rmt_item_cvt(rmt_item16_t *rmt_data, hbs_item16_t data)
 {
     int cnt = 0;
-    int parity = 0; // parity bit calculate on cvt -> hbs_item16_t parity ignored
+    int parity = 0;          // parity bit calculate on cvt -> hbs_item16_t parity ignored
     rmt_data[cnt].level = 0; // start bit
     rmt_data[cnt].duration = TX_BIT_DIVIDER;
     cnt++;
     rmt_data[cnt].level = 1; // start bit
     rmt_data[cnt].duration = TX_BIT_DIVIDER;
     cnt++;
-    for (; cnt < BIT_IN_WORD - 4; cnt += 2) // 22 - 2 (start) - 2 (parity)  -> lsb first  
+    for (; cnt < BIT_IN_WORD - 4; cnt += 2) // 22 - 2 (start) - 2 (parity)  -> lsb first
     {
         rmt_data[cnt].level = data.val & 1;
         rmt_data[cnt].duration = TX_BIT_DIVIDER;
-        rmt_data[cnt+1].level = 1;                    // 0 -> encoded 01, 1 -> encoded 11
-        rmt_data[cnt+1].duration = TX_BIT_DIVIDER;
+        rmt_data[cnt + 1].level = 1; // 0 -> encoded 01, 1 -> encoded 11
+        rmt_data[cnt + 1].duration = TX_BIT_DIVIDER;
         data.val >>= 1;
         parity += (data.val & 1);
     }
@@ -206,7 +205,7 @@ static void hbs_item_to_rmt_item_cvt(rmt_item16_t *rmt_data, hbs_item16_t data)
 }
 static void hbs_tx_packet_task(void *p)
 {
-    rmt_item32_t rmt_item[14];  // 14*2 -> 28 bit ( with 00 end transfer )
+    rmt_item32_t rmt_item[14]; // 14*2 -> 28 bit ( with 00 end transfer )
     rmt_item16_t *rmt_data = (rmt_item16_t *)rmt_item;
     int cnt = 0;
     hbs_packet_t packet = {0};
@@ -216,11 +215,25 @@ static void hbs_tx_packet_task(void *p)
         for (cnt = 0; cnt < packet.packet_hdr.packet_size; cnt++)
         {
             hbs_item_to_rmt_item_cvt(rmt_data, packet.packet_data[cnt]);
-            rmt_write_items(TX_CHANNEL, rmt_item, sizeof(rmt_item)/sizeof(rmt_item32_t), 1); // start & wait done
+            rmt_write_items(TX_CHANNEL, rmt_item, 14, 1); // start & wait done
         }
         xEventGroupSetBits(hbs_tx_event_group, hbs_TX_DONE_BIT);
     }
 }
+#if 0
+static void hbs_tx_packet_tx(hbs_packet_t *packet)
+{
+    rmt_item32_t rmt_item[14];  // 14*2 -> 28 bit ( with 00 end transfer )
+    rmt_item16_t *rmt_data = (rmt_item16_t *)rmt_item;
+    int cnt = 0;
+        for (cnt = 0; cnt < packet->packet_hdr.packet_size; cnt++)
+        {
+            hbs_item_to_rmt_item_cvt(rmt_data, packet->packet_data[cnt]);
+            rmt_write_items(TX_CHANNEL, rmt_item, 14, 1); // start & wait done
+        }
+}
+#endif
+
 esp_err_t hbs_init(gpio_num_t rx_pin, gpio_num_t tx_pin)
 {
 
@@ -252,7 +265,7 @@ esp_err_t hbs_init(gpio_num_t rx_pin, gpio_num_t tx_pin)
     //
     hbs_rx_packet_queue = xQueueCreate(4, sizeof(hbs_packet_t));
     rmt_config(&rmt_rx_config);
-    rmt_driver_install(RX_CHANNEL, 4096, 0);
+    rmt_driver_install(RX_CHANNEL, 4096 * 4, 0);
     xTaskCreate(hbs_rx_packet_task, "rmt rx", 4096, NULL, 5, &hbs_rx_packet_task_handle);
 
     return ESP_OK;
@@ -272,12 +285,16 @@ esp_err_t hbs_deinit(void)
 }
 void hbs_tx_packet(hbs_packet_t *packet)
 {
-    xQueueSend(hbs_tx_packet_queue, packet, portMAX_DELAY); // data send to tx queue, start transmit
-    xEventGroupWaitBits(hbs_tx_event_group,hbs_TX_DONE_BIT,pdTRUE,pdFALSE,portMAX_DELAY); // all data transmitted
+    xQueueSend(hbs_tx_packet_queue, packet, portMAX_DELAY);                                   // data send to tx queue, start transmit
+    xEventGroupWaitBits(hbs_tx_event_group, hbs_TX_DONE_BIT, pdTRUE, pdFALSE, portMAX_DELAY); // all data transmitted
+#if 0
+    hbs_tx_packet_tx(packet);
+#endif
 }
 esp_err_t hbs_rx_packet(hbs_packet_t *packet, TickType_t wait_time)
 {
-    if (xQueueReceive(hbs_rx_packet_queue, packet, wait_time) != pdTRUE)
+    int ret = xQueueReceive(hbs_rx_packet_queue, packet, wait_time);
+    if (ret != pdTRUE)
     {
         return ESP_ERR_TIMEOUT;
     }

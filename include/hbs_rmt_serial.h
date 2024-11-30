@@ -1,6 +1,6 @@
 #include "driver/gpio.h"
 // hbs item
-#define MAX_HBS_PACKET_SIZE 25
+#define MAX_HBS_PACKET_SIZE 26
 typedef struct
 {
     union
