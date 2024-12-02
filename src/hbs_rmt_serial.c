@@ -35,7 +35,7 @@ static const char *TAG = "HBS RMT";
 #define RX_CHANNEL RMT_CHANNEL_1
 #define RMT_RX_DIV (40)          // 8
 #define RMT_RX_IDLE_THRES (5000) // 12000
-#define RX_BIT_DIVIDER (100)     // 1040
+#define RX_BIT_DIVIDER (102)     // 1040
 // min duration on log  ( dur = 59 ) compensation = 104-59 = 45
 #define RX_PULSE_HI_LVL_DELAY_COMPENSATION (0)
 #define RX_PULSE_LOW_LVL_DELAY_COMPENSATION (0)
@@ -44,7 +44,7 @@ static const char *TAG = "HBS RMT";
 #define TX_CHANNEL RMT_CHANNEL_0
 // tx baud=80000000/40/104 = 19230 baud
 #define RMT_TX_DIV (40)      // 8 // esp32_hbs = 82
-#define TX_BIT_DIVIDER (104) // 1042 // esp32_hbs=100
+#define TX_BIT_DIVIDER (102) // 1042 // esp32_hbs=100
 
 #define BIT_IN_WORD (22) // -> for hsb start(2)+18 bit+stop(2)
                          // -> For hsb_rmt start(1 bit) + 20 bit (msb already 1, 16(8*2) bit data, 1(2) bit parity, lsb already 1 ) + stop(1 bit)
@@ -117,7 +117,8 @@ static void hbs_rx_packet_task(void *p)
 #else
                 int lvl = (items[i].level) & 1;
 #endif
-                int duration = (lvl == 1) ? (items[i].duration + RX_PULSE_HI_LVL_DELAY_COMPENSATION) / RX_BIT_DIVIDER : (items[i].duration - RX_PULSE_LOW_LVL_DELAY_COMPENSATION) / RX_BIT_DIVIDER;
+//                int duration = (lvl == 1) ? (items[i].duration + RX_PULSE_HI_LVL_DELAY_COMPENSATION) / RX_BIT_DIVIDER : (items[i].duration - RX_PULSE_LOW_LVL_DELAY_COMPENSATION) / RX_BIT_DIVIDER;
+                int duration = (items[i].duration + RX_BIT_DIVIDER/2) / RX_BIT_DIVIDER ;
                 // ESP_LOGI(TAG, "%d lvl=%d, bit_in=%d,dur=%d", i, lvl, duration, items[i].duration);
                 if (cnt_bit == 0) // start bit
                 {
