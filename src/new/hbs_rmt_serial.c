@@ -107,30 +107,31 @@ static bool rmt_rx_done_callback(rmt_channel_handle_t channel, const rmt_rx_done
     return high_task_wakeup == pdTRUE;
 }
 
-
+static rmt_item16_t items[338*2] = {0};
 static void hbs_rx_packet_task(void *p)
 {
     rmt_rx_done_event_data_t rx_data;
     size_t length = 0;
-    RingbufHandle_t rb = NULL;
-    rmt_item16_t *items = NULL;
     uint32_t hbs_data_bit = 0; // 22 bit from hbs
     // hbs_item16_t data = {0};
     hbs_packet_t packet = {0};
     int cnt_bit = 0;  // wait start bit, bit count
     int cnt_byte = 0; // byte in packet
-    rmt_get_ringbuf_handle(RX_CHANNEL, &rb);
-    rmt_rx_start(RX_CHANNEL, true);
+
+    rmt_receive_config_t receive_config = {
+        .signal_range_min_ns = 10,        // the shortest duration
+        .signal_range_max_ns = 2*500*1000// the longest duration
+    }
+    ESP_ERROR_CHECK(rmt_receive(rx_chan, items, sizeof(items), &receive_config));
     while (1)
     {
-        items = (rmt_item16_t *)xRingbufferReceive(rb, &length, portMAX_DELAY);
-//        if (xQueueReceive(receive_queue, &rx_data, portMAX_DELAY) == pdTRUE)
-        if (items)
+        if (xQueueReceive(receive_queue, &rx_data, portMAX_DELAY) == pdTRUE)
         {
+            lehght = rx_data.num_symbols;
 #if DBG
             gpio_set_level(RX_TEST_GPIO, 1);
 #endif
-            length /= 2; // one RMT = 2 Bytes
+            length *= 2; // one RMT = 2 Bytes
             for (int i = 0; i < length; i++)
             {
 #if RX_INVERT_LVL
@@ -183,8 +184,6 @@ static void hbs_rx_packet_task(void *p)
         cnt_byte = 0;
         cnt_bit = 0; // wait next start bit
         memset(&packet, 0, sizeof(packet));
-        // after parsing the data, return spaces to ringbuffer.
-        vRingbufferReturnItem(rb, (void *)items);
     }
 }
 static void hbs_item_to_rmt_item_cvt(rmt_item16_t *rmt_data, hbs_item16_t data)
@@ -298,8 +297,6 @@ esp_err_t hbs_init(gpio_num_t rx_pin, gpio_num_t tx_pin)
     ESP_ERROR_CHECK(rmt_enable(rx_chan));
     //
     hbs_rx_packet_queue = xQueueCreate(4, sizeof(hbs_packet_t));
-    rmt_config(&rmt_rx_config);
-    rmt_driver_install(RX_CHANNEL, 4096 * 4, 0);
     xTaskCreate(hbs_rx_packet_task, "rmt rx", 4096, NULL, 5, &hbs_rx_packet_task_handle);
 
     return ESP_OK;
