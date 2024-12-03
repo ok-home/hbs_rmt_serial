@@ -16,7 +16,6 @@
 #include <string.h>
 
 #include "freertos/queue.h"
-#include "driver/timer.h"
 #include "esp_clk_tree.h"
 #include <rom/ets_sys.h>
 
@@ -34,7 +33,7 @@
 static const char *TAG = "RMT TEST";
 hbs_packet_t send_packet =
     {
-        .packet_hdr.packet_size = 26,
+        .packet_hdr.packet_size = 26,//6,
         .packet_data =
             {
                 {.parity = 1, .data = 0x00},
@@ -71,7 +70,7 @@ void app_main(void)
 // dbg logic analyzer
 #include "logic_analyzer_ws_server.h"
 
-    logic_analyzer_ws_server();
+    //logic_analyzer_ws_server();
     //
     //  dbg GPIO PIN
     gpio_reset_pin(TX_TEST_GPIO);
@@ -97,7 +96,7 @@ void app_main(void)
         gpio_set_level(TX_TEST_GPIO, 1);
 #endif
         hbs_tx_packet(&send_packet);
-        hbs_rx_packet(&rx_packet, portMAX_DELAY);
+        hbs_rx_packet(&rx_packet,portMAX_DELAY);
 #if DBG
         gpio_set_level(TX_TEST_GPIO, 0);
 #endif

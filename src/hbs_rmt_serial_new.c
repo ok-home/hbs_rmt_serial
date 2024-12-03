@@ -22,7 +22,6 @@
 #include "driver/rmt_tx.h"
 #include "driver/rmt_encoder.h"
 
-
 #include "hbs_rmt_serial.h"
 
 static const char *TAG = "HBS RMT";
@@ -37,20 +36,20 @@ static const char *TAG = "HBS RMT";
  */
 
 #define RX_CHANNEL RMT_CHANNEL_1
-#define RMT_RX_DIV (40)          // 8
+#define RMT_RX_DIV (40) // 8
 
 #define RMT_RX_IDLE_THRES (5000) // 12000
 #define RX_BIT_DIVIDER (102)     // 1040
-#define RMT_RX_CLK_OUT (80*1000*1000/RMT_RX_DIV)
+#define RMT_RX_CLK_OUT (80 * 1000 * 1000 / RMT_RX_DIV)
 // min duration on log  ( dur = 59 ) compensation = 104-59 = 45
-//#define RX_PULSE_HI_LVL_DELAY_COMPENSATION (0)
-//#define RX_PULSE_LOW_LVL_DELAY_COMPENSATION (0)
+// #define RX_PULSE_HI_LVL_DELAY_COMPENSATION (0)
+// #define RX_PULSE_LOW_LVL_DELAY_COMPENSATION (0)
 #define RX_INVERT_LVL 0
 
 #define TX_CHANNEL RMT_CHANNEL_0
 // tx baud=80000000/40/104 = 19230 baud
-#define RMT_TX_DIV (40)      // 8 // esp32_hbs = 82
-#define RMT_TX_CLK_OUT = (80*1000*1000/RMT_TX_DIV)
+#define RMT_TX_DIV (40) // 8 // esp32_hbs = 82
+#define RMT_TX_CLK_OUT (80 * 1000 * 1000 / RMT_TX_DIV)
 #define TX_BIT_DIVIDER (102) // 1042 // esp32_hbs=100
 
 #define BIT_IN_WORD (22) // -> for hsb start(2)+18 bit+stop(2)
@@ -111,7 +110,7 @@ static bool rmt_rx_done_callback(rmt_channel_handle_t channel, const rmt_rx_done
     return high_task_wakeup == pdTRUE;
 }
 
-static rmt_item16_t items[338*2] = {0};
+static rmt_item16_t items[338 * 2] = {0};
 static void hbs_rx_packet_task(void *p)
 {
     rmt_rx_done_event_data_t rx_data;
@@ -123,15 +122,17 @@ static void hbs_rx_packet_task(void *p)
     int cnt_byte = 0; // byte in packet
 
     rmt_receive_config_t receive_config = {
-        .signal_range_min_ns = 10,        // the shortest duration
-        .signal_range_max_ns = 2*500*1000// the longest duration
-    }
-    ESP_ERROR_CHECK(rmt_receive(rx_chan, items, sizeof(items), &receive_config));
+        .signal_range_min_ns = 10,             // the shortest duration
+        .signal_range_max_ns = 2 * 1000 * 1000 // the longest duration
+    };
     while (1)
     {
+        ESP_ERROR_CHECK(rmt_receive(rx_chan, items, sizeof(items), &receive_config));
         if (xQueueReceive(receive_queue, &rx_data, portMAX_DELAY) == pdTRUE)
         {
-            lehght = rx_data.num_symbols;
+            // ESP_LOGI(TAG, "receive %d symbols iptr = %p dptr = %p", rx_data.num_symbols, rx_data.received_symbols, items);
+
+            length = rx_data.num_symbols;
 #if DBG
             gpio_set_level(RX_TEST_GPIO, 1);
 #endif
@@ -143,8 +144,8 @@ static void hbs_rx_packet_task(void *p)
 #else
                 int lvl = (items[i].level) & 1;
 #endif
-//                int duration = (lvl == 1) ? (items[i].duration + RX_PULSE_HI_LVL_DELAY_COMPENSATION) / RX_BIT_DIVIDER : (items[i].duration - RX_PULSE_LOW_LVL_DELAY_COMPENSATION) / RX_BIT_DIVIDER;
-                int duration = (items[i].duration + RX_BIT_DIVIDER/2) / RX_BIT_DIVIDER ;
+                //                int duration = (lvl == 1) ? (items[i].duration + RX_PULSE_HI_LVL_DELAY_COMPENSATION) / RX_BIT_DIVIDER : (items[i].duration - RX_PULSE_LOW_LVL_DELAY_COMPENSATION) / RX_BIT_DIVIDER;
+                int duration = (items[i].duration + RX_BIT_DIVIDER / 2) / RX_BIT_DIVIDER;
                 // ESP_LOGI(TAG, "%d lvl=%d, bit_in=%d,dur=%d", i, lvl, duration, items[i].duration);
                 if (cnt_bit == 0) // start bit
                 {
@@ -194,54 +195,56 @@ static void hbs_item_to_rmt_item_cvt(rmt_item16_t *rmt_data, hbs_item16_t data)
 {
     int cnt = 0;
     int parity = 0;          // parity bit calculate on cvt -> hbs_item16_t parity ignored
-    rmt_data[cnt].level = 0; // start bit
+    rmt_data[cnt].level = 1; // start bit
     rmt_data[cnt].duration = TX_BIT_DIVIDER;
     cnt++;
-    rmt_data[cnt].level = 1; // start bit
+    rmt_data[cnt].level = 0; // start bit
     rmt_data[cnt].duration = TX_BIT_DIVIDER;
     cnt++;
     for (; cnt < BIT_IN_WORD - 4; cnt += 2) // 22 - 2 (start) - 2 (parity)  -> lsb first
     {
-        rmt_data[cnt].level = data.val & 1;
+        rmt_data[cnt].level = (~data.val) & 1;
         rmt_data[cnt].duration = TX_BIT_DIVIDER;
-        rmt_data[cnt + 1].level = 1; // 0 -> encoded 01, 1 -> encoded 11
+        rmt_data[cnt + 1].level = 0; // 0 -> encoded 01, 1 -> encoded 11
         rmt_data[cnt + 1].duration = TX_BIT_DIVIDER;
         data.val >>= 1;
         parity += (data.val & 1);
     }
     // parity bit
-    rmt_data[cnt].level = parity & 1;
+    rmt_data[cnt].level = (~parity) & 1;
     rmt_data[cnt].duration = TX_BIT_DIVIDER;
     cnt++;
-    rmt_data[cnt].level = 1;
+    rmt_data[cnt].level = 0;
     rmt_data[cnt].duration = TX_BIT_DIVIDER;
     cnt++;
-    rmt_data[cnt].level = 1; // stop bit
+    rmt_data[cnt].level = 0; // stop bit
     rmt_data[cnt].duration = TX_BIT_DIVIDER;
     cnt++;
-    rmt_data[cnt].level = 1; // stop bit
+    rmt_data[cnt].level = 0; // stop bit
     rmt_data[cnt].duration = TX_BIT_DIVIDER;
     cnt++;
-    rmt_data[cnt].level = 1; // end transfer
+    rmt_data[cnt].level = 0; // end transfer
     rmt_data[cnt].duration = 0;
     cnt++;
-    rmt_data[cnt].level = 1; // end transfer
+    rmt_data[cnt].level = 0; // end transfer
     rmt_data[cnt].duration = 0;
 }
 static void hbs_tx_packet_task(void *p)
 {
-    rmt_item32_t rmt_item[16]; // 16*2 -> 32 bit ( with 00 end transfer )
+    rmt_symbol_word_t rmt_item[16]; // 16*4 -> 64 bit ( with 00 end transfer )
     rmt_item16_t *rmt_data = (rmt_item16_t *)rmt_item;
     int cnt = 0;
     hbs_packet_t packet = {0};
-    rmt_transmit_config_t rmt_tx_config = {0};
+    rmt_transmit_config_t rmt_tx_config = {
+        .loop_count = 0,
+    };
     while (1)
     {
         xQueueReceive(hbs_tx_packet_queue, &packet, portMAX_DELAY);
         for (cnt = 0; cnt < packet.packet_hdr.packet_size; cnt++)
         {
             hbs_item_to_rmt_item_cvt(rmt_data, packet.packet_data[cnt]);
-            ESP_ERROR_CHECK(rmt_transmit(tx_chan_handle, tx_encoder, rmt_item, (16) * 4, &rmt_tx_config));
+            ESP_ERROR_CHECK(rmt_transmit(tx_chan_handle, tx_encoder, rmt_item, 64, &rmt_tx_config));
             rmt_tx_wait_all_done(tx_chan_handle, portMAX_DELAY);
         }
         xEventGroupSetBits(hbs_tx_event_group, hbs_TX_DONE_BIT);
@@ -250,7 +253,7 @@ static void hbs_tx_packet_task(void *p)
 #if 0
 static void hbs_tx_packet_tx(hbs_packet_t *packet)
 {
-    rmt_item32_t rmt_item[14];  // 14*2 -> 28 bit ( with 00 end transfer )
+    rmt_symbol_word_t rmt_item[14];  // 14*2 -> 28 bit ( with 00 end transfer )
     rmt_item16_t *rmt_data = (rmt_item16_t *)rmt_item;
     int cnt = 0;
         for (cnt = 0; cnt < packet->packet_hdr.packet_size; cnt++)
@@ -267,15 +270,15 @@ esp_err_t hbs_init(gpio_num_t rx_pin, gpio_num_t tx_pin)
     rmt_tx_channel_config_t tx_chan_config = {
         .clk_src = RMT_CLK_SRC_DEFAULT, // select source clock
         .gpio_num = tx_pin,
-        .mem_block_symbols = 16,        // 16*2 bit = 32 bit
+        .mem_block_symbols = 64, // 16*2 bit = 32 bit
         //.flags.io_loop_back = 1,    // gpio output/input mode
+        .flags.invert_out = true,
         .resolution_hz = RMT_TX_CLK_OUT,
         .trans_queue_depth = 5, // set the maximum number of transactions that can pend in the background
     };
     ESP_ERROR_CHECK(rmt_new_tx_channel(&tx_chan_config, &tx_chan_handle));
 
     rmt_copy_encoder_config_t tx_encoder_config = {};
-    rmt_encoder_handle_t tx_encoder = NULL;
     ESP_ERROR_CHECK(rmt_new_copy_encoder(&tx_encoder_config, &tx_encoder));
     ESP_ERROR_CHECK(rmt_enable(tx_chan_handle));
     //
@@ -283,14 +286,13 @@ esp_err_t hbs_init(gpio_num_t rx_pin, gpio_num_t tx_pin)
     hbs_tx_packet_queue = xQueueCreate(1, sizeof(hbs_packet_t));
     xTaskCreate(hbs_tx_packet_task, "rmt tx", 4096, NULL, 5, &hbs_tx_packet_task_handle);
 
-    
     rmt_rx_channel_config_t rx_chan_config = {
-        .clk_src = RMT_CLK_SRC_DEFAULT,        // select source clock
-        .resolution_hz = RMT_RX_CLK_OUT, // tick resolution, 
-        .mem_block_symbols = 338,               // memory block size, 338*4 = 676 bytes -> 26 bit in msg * 26 msg in packet = 
-        .gpio_num = rx_pin,     // GPIO number
-        .flags.invert_in = false,              // do not invert input signal
-        .flags.with_dma = false,               // do not need DMA backend
+        .clk_src = RMT_CLK_SRC_DEFAULT,  // select source clock
+        .resolution_hz = RMT_RX_CLK_OUT, // tick resolution,
+        .mem_block_symbols = 338,        // memory block size, 338*4 = 676 bytes -> 26 bit in msg * 26 msg in packet =
+        .gpio_num = rx_pin,              // GPIO number
+        .flags.invert_in = false,        // do not invert input signal
+        .flags.with_dma = false,         // do not need DMA backend
     };
     ESP_ERROR_CHECK(rmt_new_rx_channel(&rx_chan_config, &rx_chan));
     receive_queue = xQueueCreate(10, sizeof(rmt_rx_done_event_data_t));
@@ -326,7 +328,7 @@ esp_err_t hbs_deinit(void)
     rmt_disable(tx_chan_handle);
     rmt_del_encoder(tx_encoder);
     rmt_del_channel(tx_chan_handle);
-    
+
     vQueueDelete(hbs_tx_packet_queue);
     vEventGroupDelete(hbs_tx_event_group);
 

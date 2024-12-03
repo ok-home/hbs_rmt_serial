@@ -119,7 +119,7 @@ static void hbs_rx_packet_task(void *p)
 #endif
 //                int duration = (lvl == 1) ? (items[i].duration + RX_PULSE_HI_LVL_DELAY_COMPENSATION) / RX_BIT_DIVIDER : (items[i].duration - RX_PULSE_LOW_LVL_DELAY_COMPENSATION) / RX_BIT_DIVIDER;
                 int duration = (items[i].duration + RX_BIT_DIVIDER/2) / RX_BIT_DIVIDER ;
-                // ESP_LOGI(TAG, "%d lvl=%d, bit_in=%d,dur=%d", i, lvl, duration, items[i].duration);
+                 ESP_LOGI(TAG, "%d lvl=%d, bit_in=%d,dur=%d", i, lvl, duration, items[i].duration);
                 if (cnt_bit == 0) // start bit
                 {
                     if (lvl == 0 && duration > 0 && duration < BIT_IN_WORD) // start bit
