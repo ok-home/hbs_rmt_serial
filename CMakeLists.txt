@@ -1,6 +1,7 @@
 idf_component_register(
     SRCS 
-        src/hbs_rmt_serial.c
+        src/hbs_rmt_serial_new.c
+        #src/hbs_rmt_serial_old.c
     PRIV_REQUIRES 
         driver
     INCLUDE_DIRS 

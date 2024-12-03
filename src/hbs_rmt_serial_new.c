@@ -17,7 +17,11 @@
 
 #include "freertos/queue.h"
 #include "freertos/event_groups.h"
-#include "driver/rmt.h"
+
+#include "driver/rmt_rx.h"
+#include "driver/rmt_tx.h"
+#include "driver/rmt_encoder.h"
+
 
 #include "hbs_rmt_serial.h"
 
