@@ -44,7 +44,7 @@ void      hbs_clear_rx_queue(void);                         // clear rx buffer
 
 #if DBG
 
-#define TX_TEST_GPIO (25)
-#define RX_TEST_GPIO (26)
+#define TX_TEST_GPIO (5)//for c3 !! esp32->(25)
+#define RX_TEST_GPIO (6)//for c3 !! esp32->(26)
 
 #endif

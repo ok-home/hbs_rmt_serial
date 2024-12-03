@@ -123,7 +123,7 @@ static void hbs_rx_packet_task(void *p)
 
     rmt_receive_config_t receive_config = {
         .signal_range_min_ns = 10,             // the shortest duration
-        .signal_range_max_ns = 2 * 1000 * 1000 // the longest duration
+        .signal_range_max_ns = 6 * 1000 * 1000 // the longest duration
     };
     while (1)
     {
@@ -270,7 +270,7 @@ esp_err_t hbs_init(gpio_num_t rx_pin, gpio_num_t tx_pin)
     rmt_tx_channel_config_t tx_chan_config = {
         .clk_src = RMT_CLK_SRC_DEFAULT, // select source clock
         .gpio_num = tx_pin,
-        .mem_block_symbols = 64, // 16*2 bit = 32 bit
+        .mem_block_symbols = 48, //for esp32c3 !!!!!!! esp32s -> 64 !!!!!!! // 16*2 bit = 32 bit
         //.flags.io_loop_back = 1,    // gpio output/input mode
         .flags.invert_out = true,
         .resolution_hz = RMT_TX_CLK_OUT,
@@ -289,7 +289,7 @@ esp_err_t hbs_init(gpio_num_t rx_pin, gpio_num_t tx_pin)
     rmt_rx_channel_config_t rx_chan_config = {
         .clk_src = RMT_CLK_SRC_DEFAULT,  // select source clock
         .resolution_hz = RMT_RX_CLK_OUT, // tick resolution,
-        .mem_block_symbols = 338,        // memory block size, 338*4 = 676 bytes -> 26 bit in msg * 26 msg in packet =
+        .mem_block_symbols = 48*2,// for esp32c3 !!!!!!! esp32s -> 338 !!!!!!!        // memory block size, 338*4 = 676 bytes -> 26 bit in msg * 26 msg in packet =
         .gpio_num = rx_pin,              // GPIO number
         .flags.invert_in = false,        // do not invert input signal
         .flags.with_dma = false,         // do not need DMA backend
