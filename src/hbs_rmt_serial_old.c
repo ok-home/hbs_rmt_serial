@@ -106,9 +106,6 @@ static void hbs_rx_packet_task(void *p)
         items = (rmt_item16_t *)xRingbufferReceive(rb, &length, portMAX_DELAY);
         if (items)
         {
-#if DBG
-            gpio_set_level(RX_TEST_GPIO, 1);
-#endif
             length /= 2; // one RMT = 2 Bytes
             for (int i = 0; i < length; i++)
             {
@@ -156,9 +153,6 @@ static void hbs_rx_packet_task(void *p)
         packet.packet_hdr.packet_size = cnt_byte;
         // ESP_LOGI(TAG, "all item converted %d byte ",cnt_byte);
         xQueueSend(hbs_rx_packet_queue, &packet, portMAX_DELAY);
-#if DBG
-        gpio_set_level(RX_TEST_GPIO, 0);
-#endif
         cnt_byte = 0;
         cnt_bit = 0; // wait next start bit
         memset(&packet, 0, sizeof(packet));

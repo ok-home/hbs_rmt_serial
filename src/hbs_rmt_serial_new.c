@@ -46,6 +46,17 @@ static const char *TAG = "HBS RMT";
 // #define RX_PULSE_LOW_LVL_DELAY_COMPENSATION (0)
 #define RX_INVERT_LVL 0
 
+#if CONFIG_IDF_TARGET_ESP32C3
+#define RX_BLOCK_SYMBOL (48*2)
+#define TX_BLOCK_SYMBOL (48)
+#endif
+
+#if CONFIG_IDF_TARGET_ESP32
+#define RX_BLOCK_SYMBOL (338)
+#define TX_BLOCK_SYMBOL (64)
+#endif
+
+
 #define TX_CHANNEL RMT_CHANNEL_0
 // tx baud=80000000/40/104 = 19230 baud
 #define RMT_TX_DIV (40) // 8 // esp32_hbs = 82
@@ -133,9 +144,7 @@ static void hbs_rx_packet_task(void *p)
             // ESP_LOGI(TAG, "receive %d symbols iptr = %p dptr = %p", rx_data.num_symbols, rx_data.received_symbols, items);
 
             length = rx_data.num_symbols;
-#if DBG
-            gpio_set_level(RX_TEST_GPIO, 1);
-#endif
+
             length *= 2; // one RMT = 2 Bytes
             for (int i = 0; i < length; i++)
             {
@@ -183,9 +192,6 @@ static void hbs_rx_packet_task(void *p)
         packet.packet_hdr.packet_size = cnt_byte;
         // ESP_LOGI(TAG, "all item converted %d byte ",cnt_byte);
         xQueueSend(hbs_rx_packet_queue, &packet, portMAX_DELAY);
-#if DBG
-        gpio_set_level(RX_TEST_GPIO, 0);
-#endif
         cnt_byte = 0;
         cnt_bit = 0; // wait next start bit
         memset(&packet, 0, sizeof(packet));
@@ -250,19 +256,6 @@ static void hbs_tx_packet_task(void *p)
         xEventGroupSetBits(hbs_tx_event_group, hbs_TX_DONE_BIT);
     }
 }
-#if 0
-static void hbs_tx_packet_tx(hbs_packet_t *packet)
-{
-    rmt_symbol_word_t rmt_item[14];  // 14*2 -> 28 bit ( with 00 end transfer )
-    rmt_item16_t *rmt_data = (rmt_item16_t *)rmt_item;
-    int cnt = 0;
-        for (cnt = 0; cnt < packet->packet_hdr.packet_size; cnt++)
-        {
-            hbs_item_to_rmt_item_cvt(rmt_data, packet->packet_data[cnt]);
-            rmt_write_items(TX_CHANNEL, rmt_item, 14, 1); // start & wait done
-        }
-}
-#endif
 
 esp_err_t hbs_init(gpio_num_t rx_pin, gpio_num_t tx_pin)
 {
@@ -270,8 +263,7 @@ esp_err_t hbs_init(gpio_num_t rx_pin, gpio_num_t tx_pin)
     rmt_tx_channel_config_t tx_chan_config = {
         .clk_src = RMT_CLK_SRC_DEFAULT, // select source clock
         .gpio_num = tx_pin,
-        .mem_block_symbols = 48, //for esp32c3 !!!!!!! esp32s -> 64 !!!!!!! // 16*2 bit = 32 bit
-        //.flags.io_loop_back = 1,    // gpio output/input mode
+        .mem_block_symbols = TX_BLOCK_SYMBOL, //for esp32c3 !!!!!!! esp32s -> 64 !!!!!!! // 16*2 bit = 32 bit
         .flags.invert_out = true,
         .resolution_hz = RMT_TX_CLK_OUT,
         .trans_queue_depth = 5, // set the maximum number of transactions that can pend in the background
@@ -289,7 +281,7 @@ esp_err_t hbs_init(gpio_num_t rx_pin, gpio_num_t tx_pin)
     rmt_rx_channel_config_t rx_chan_config = {
         .clk_src = RMT_CLK_SRC_DEFAULT,  // select source clock
         .resolution_hz = RMT_RX_CLK_OUT, // tick resolution,
-        .mem_block_symbols = 48*2,// for esp32c3 !!!!!!! esp32s -> 338 !!!!!!!        // memory block size, 338*4 = 676 bytes -> 26 bit in msg * 26 msg in packet =
+        .mem_block_symbols = RX_BLOCK_SYMBOL,// for esp32c3 !!!!!!! esp32s -> 338 !!!!!!!        // memory block size, 338*4 = 676 bytes -> 26 bit in msg * 26 msg in packet =
         .gpio_num = rx_pin,              // GPIO number
         .flags.invert_in = false,        // do not invert input signal
         .flags.with_dma = false,         // do not need DMA backend
@@ -338,9 +330,6 @@ void hbs_tx_packet(hbs_packet_t *packet)
 {
     xQueueSend(hbs_tx_packet_queue, packet, portMAX_DELAY);                                   // data send to tx queue, start transmit
     xEventGroupWaitBits(hbs_tx_event_group, hbs_TX_DONE_BIT, pdTRUE, pdFALSE, portMAX_DELAY); // all data transmitted
-#if 0
-    hbs_tx_packet_tx(packet);
-#endif
 }
 esp_err_t hbs_rx_packet(hbs_packet_t *packet, TickType_t wait_time)
 {
