@@ -85,8 +85,6 @@ void app_main(void)
 // dbg logic analyzer
 #include "logic_analyzer_ws_server.h"
 
-   ESP_LOGI(TAG, "Size tx=%d", send_packet.packet_hdr.packet_size);
-
     logic_analyzer_ws_server();
     //
     //  dbg GPIO PIN
@@ -127,12 +125,12 @@ void app_main(void)
 
 #if 1
         if (tx_packet.packet_hdr.packet_size != rx_packet.packet_hdr.packet_size)
-            ESP_LOGE(TAG, "ERROR Size tx=%d rx=%d", send_packet.packet_hdr.packet_size, rx_packet.packet_hdr.packet_size);
+            ESP_LOGE(TAG, "ERROR Size tx=%d rx=%d", tx_packet.packet_hdr.packet_size, rx_packet.packet_hdr.packet_size);
         for (int i = 0; i < tx_packet.packet_hdr.packet_size; i++)
         {
             if (tx_packet.packet_data[i].data != rx_packet.packet_data[i].data)
             {
-                ESP_LOGE(TAG, "ERROR Packet idx= %d tx %x rx %x err_cnt=%d", i, send_packet.packet_data[i].data, rx_packet.packet_data[i].data, err_cnt++);
+                ESP_LOGE(TAG, "ERROR Packet idx= %d tx %x rx %x err_cnt=%d", i, tx_packet.packet_data[i].data, rx_packet.packet_data[i].data, err_cnt++);
             }
         }
         memset((void *)&rx_packet, 0, sizeof(rx_packet));
