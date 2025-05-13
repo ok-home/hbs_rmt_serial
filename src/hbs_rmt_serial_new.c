@@ -52,7 +52,7 @@ static const char *TAG = "HBS RMT";
 #endif
 
 #if CONFIG_IDF_TARGET_ESP32
-#define RX_BLOCK_SYMBOL (338)
+#define RX_BLOCK_SYMBOL (64*6)
 #define TX_BLOCK_SYMBOL (64)
 #endif
 
@@ -121,7 +121,7 @@ static bool rmt_rx_done_callback(rmt_channel_handle_t channel, const rmt_rx_done
     return high_task_wakeup == pdTRUE;
 }
 
-static rmt_item16_t items[338 * 2] = {0};
+static rmt_item16_t items[RX_BLOCK_SYMBOL * 2] = {0};
 static void hbs_rx_packet_task(void *p)
 {
     rmt_rx_done_event_data_t rx_data;
