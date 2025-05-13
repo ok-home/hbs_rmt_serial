@@ -1,6 +1,6 @@
 #include "driver/gpio.h"
 // hbs item
-#define MAX_HBS_PACKET_SIZE 26
+#define MAX_HBS_PACKET_SIZE 32
 typedef struct
 {
     union
@@ -40,11 +40,3 @@ void      hbs_tx_packet(hbs_packet_t *packet);              // send hbs packet (
 esp_err_t hbs_rx_packet(hbs_packet_t *packet, TickType_t wait_time); // receive hbs packet
 void      hbs_clear_rx_queue(void);                         // clear rx buffer
 
-#define DBG 1
-
-#if DBG
-
-#define TX_TEST_GPIO (5)//for c3 !! esp32->(25)
-#define RX_TEST_GPIO (6)//for c3 !! esp32->(26)
-
-#endif

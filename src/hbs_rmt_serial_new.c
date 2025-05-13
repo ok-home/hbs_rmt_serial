@@ -39,7 +39,7 @@ static const char *TAG = "HBS RMT";
 #define RMT_RX_DIV (40) // 8
 
 #define RMT_RX_IDLE_THRES (5000) // 12000
-#define RX_BIT_DIVIDER (102)     // 1040
+#define RX_BIT_DIVIDER (104)     // 1040
 #define RMT_RX_CLK_OUT (80 * 1000 * 1000 / RMT_RX_DIV)
 // min duration on log  ( dur = 59 ) compensation = 104-59 = 45
 // #define RX_PULSE_HI_LVL_DELAY_COMPENSATION (0)
@@ -61,7 +61,7 @@ static const char *TAG = "HBS RMT";
 // tx baud=80000000/40/104 = 19230 baud
 #define RMT_TX_DIV (40) // 8 // esp32_hbs = 82
 #define RMT_TX_CLK_OUT (80 * 1000 * 1000 / RMT_TX_DIV)
-#define TX_BIT_DIVIDER (102) // 1042 // esp32_hbs=100
+#define TX_BIT_DIVIDER (104) // 1042 // esp32_hbs=100
 
 #define BIT_IN_WORD (22) // -> for hsb start(2)+18 bit+stop(2)
                          // -> For hsb_rmt start(1 bit) + 20 bit (msb already 1, 16(8*2) bit data, 1(2) bit parity, lsb already 1 ) + stop(1 bit)

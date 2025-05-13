@@ -50,12 +50,12 @@ void app_main(void)
 {
     hbs_packet_t tx_packet =
     {
-        .packet_hdr.packet_size = 26,
+        .packet_hdr.packet_size = 32,
         .packet_data =
             {
-                {.parity = 1, .data = 0x00},
+                {.parity = 0, .data = 0x21},
                 {.parity = 0, .data = 0x00},
-                {.parity = 0, .data = 0x10},
+                {.parity = 0, .data = 0xff},
                 {.parity = 0, .data = 0xff},
                 {.parity = 1, .data = 0xff},
                 {.parity = 0, .data = 0x00},
