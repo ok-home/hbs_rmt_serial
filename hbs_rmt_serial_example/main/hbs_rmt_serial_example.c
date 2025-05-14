@@ -50,7 +50,7 @@ void app_main(void)
 {
     hbs_packet_t tx_packet =
     {
-        .packet_hdr.packet_size = 32,
+        .packet_hdr.packet_size = MAX_HBS_PACKET_SIZE, //32
         .packet_data =
             {
                 {.parity = 0, .data = 0x21},
@@ -79,6 +79,12 @@ void app_main(void)
                 {.parity = 1, .data = 0x00},
                 {.parity = 1, .data = 0xff},
                 {.parity = 1, .data = 0x00},
+                {.parity = 1, .data = 0xab},
+                {.parity = 1, .data = 0xba},
+                {.parity = 1, .data = 0xcc},
+                {.parity = 1, .data = 0xdd},
+                {.parity = 1, .data = 0xaa},
+                {.parity = 1, .data = 0x55},
             }};
 
 #if DBG
@@ -96,11 +102,10 @@ void app_main(void)
 #if DBG
     // connect rx & tx pins without wires -> test only
     PIN_INPUT_ENABLE(GPIO_PIN_MUX_REG[RMT_TX_GPIO]);
-#if CONFIG_IDF_TARGET_ESP32C3
-    gpio_matrix_in(RMT_TX_GPIO, RMT_SIG_IN0_IDX, false);//esp32->RMT_SIG_IN1_IDX
-#endif
 #if CONFIG_IDF_TARGET_ESP32
     gpio_matrix_in(RMT_TX_GPIO, RMT_SIG_IN1_IDX, false);//esp32->RMT_SIG_IN1_IDX
+#else //ESP32S3 ESP32C3
+    gpio_matrix_in(RMT_TX_GPIO, RMT_SIG_IN0_IDX, false);
 #endif
 
 #endif

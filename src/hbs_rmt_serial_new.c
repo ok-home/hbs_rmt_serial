@@ -31,34 +31,30 @@ static const char *TAG = "HBS RMT";
  * 9600-1%+2% about 9500-9800 - hbs baud standart
  * tx baud calculate 80 000 000 / RMT_TX_DIV / TX_BIT_DIVIDER
  * rx bit divider should be a little more then max tx rate(9800)
- * RX_BIT_DIVIDER = ( 80 000 000/19200/RMT_RX_DIV ) = 100-102
+ * RX_BIT_DIVIDER = ( 80 000 000/19200/RMT_RX_DIV ) = 100-104
  * RMT_RX_IDLE_THRES may be  greater then (80 000 000/RX_BIT_DIVIDER/9500*11) = 1158(1200-2400)
  */
 
-#define RX_CHANNEL RMT_CHANNEL_1
 #define RMT_RX_DIV (40) // 8
 
-#define RMT_RX_IDLE_THRES (5000) // 12000
+#define RMT_RX_IDLE_THRES (3*1000*1000) // nanosek
+#define RMT_RX_GLITCH_FILTER (1*1000)   //nanosek
 #define RX_BIT_DIVIDER (104)     // 1040
 #define RMT_RX_CLK_OUT (80 * 1000 * 1000 / RMT_RX_DIV)
-// min duration on log  ( dur = 59 ) compensation = 104-59 = 45
-// #define RX_PULSE_HI_LVL_DELAY_COMPENSATION (0)
-// #define RX_PULSE_LOW_LVL_DELAY_COMPENSATION (0)
+
 #define RX_INVERT_LVL 0
 
-#if CONFIG_IDF_TARGET_ESP32C3
-#define RX_BLOCK_SYMBOL (48*2)
-#define TX_BLOCK_SYMBOL (48)
+
+#ifdef CONFIG_IDF_TARGET_ESP32
+#define RX_BLOCK_SYMBOL (SOC_RMT_MEM_WORDS_PER_CHANNEL*7)      // 7 rmt channel memory
+#define TX_BLOCK_SYMBOL (SOC_RMT_MEM_WORDS_PER_CHANNEL*1)      // 1 rmt channel memory always ping/pong
+#else // ESP32-S3 ESP32-C3 -> PINGPONG RX
+#define RX_BLOCK_SYMBOL (SOC_RMT_MEM_WORDS_PER_CHANNEL*2)      // 2  rmt channel memory ping/pong
+#define TX_BLOCK_SYMBOL (SOC_RMT_MEM_WORDS_PER_CHANNEL*2)      // 2 rmt channel memory always ping/pong
 #endif
 
-#if CONFIG_IDF_TARGET_ESP32
-#define RX_BLOCK_SYMBOL (64*6)
-#define TX_BLOCK_SYMBOL (64)
-#endif
 
-
-#define TX_CHANNEL RMT_CHANNEL_0
-// tx baud=80000000/40/104 = 19230 baud
+// tx baud=80000000/40/104 = 9600 baud
 #define RMT_TX_DIV (40) // 8 // esp32_hbs = 82
 #define RMT_TX_CLK_OUT (80 * 1000 * 1000 / RMT_TX_DIV)
 #define TX_BIT_DIVIDER (104) // 1042 // esp32_hbs=100
@@ -77,7 +73,7 @@ static rmt_encoder_handle_t tx_encoder = NULL;
 static rmt_channel_handle_t rx_chan = NULL;
 static QueueHandle_t receive_queue;
 
-#define hbs_TX_DONE_BIT BIT0
+#define HBS_TX_DONE_BIT BIT0
 static EventGroupHandle_t hbs_tx_event_group;
 
 // single rmt item
@@ -121,7 +117,7 @@ static bool rmt_rx_done_callback(rmt_channel_handle_t channel, const rmt_rx_done
     return high_task_wakeup == pdTRUE;
 }
 
-static rmt_item16_t items[RX_BLOCK_SYMBOL * 2] = {0};
+static rmt_item16_t items[MAX_HBS_PACKET_SIZE * BIT_IN_WORD + 2] = {0}; // for software glitch detect must be * 2
 static void hbs_rx_packet_task(void *p)
 {
     rmt_rx_done_event_data_t rx_data;
@@ -133,8 +129,11 @@ static void hbs_rx_packet_task(void *p)
     int cnt_byte = 0; // byte in packet
 
     rmt_receive_config_t receive_config = {
-        .signal_range_min_ns = 10,             // the shortest duration
-        .signal_range_max_ns = 6 * 1000 * 1000 // the longest duration
+        .signal_range_min_ns = RMT_RX_GLITCH_FILTER,        // the shortest duration
+        .signal_range_max_ns = RMT_RX_IDLE_THRES            // the longest duration
+#if SOC_RMT_SUPPORT_RX_PINGPONG        
+        .flags.en_partial_rx = true,
+#endif        
     };
     while (1)
     {
@@ -237,7 +236,7 @@ static void hbs_item_to_rmt_item_cvt(rmt_item16_t *rmt_data, hbs_item16_t data)
 }
 static void hbs_tx_packet_task(void *p)
 {
-    rmt_symbol_word_t rmt_item[16]; // 16*4 -> 64 bit ( with 00 end transfer )
+    rmt_symbol_word_t rmt_item[16]; // 16*2 -> 32 bit ( with 00 end transfer )
     rmt_item16_t *rmt_data = (rmt_item16_t *)rmt_item;
     int cnt = 0;
     hbs_packet_t packet = {0};
@@ -253,7 +252,7 @@ static void hbs_tx_packet_task(void *p)
             ESP_ERROR_CHECK(rmt_transmit(tx_chan_handle, tx_encoder, rmt_item, 64, &rmt_tx_config));
             rmt_tx_wait_all_done(tx_chan_handle, portMAX_DELAY);
         }
-        xEventGroupSetBits(hbs_tx_event_group, hbs_TX_DONE_BIT);
+        xEventGroupSetBits(hbs_tx_event_group, HBS_TX_DONE_BIT);
     }
 }
 
@@ -329,7 +328,7 @@ esp_err_t hbs_deinit(void)
 void hbs_tx_packet(hbs_packet_t *packet)
 {
     xQueueSend(hbs_tx_packet_queue, packet, portMAX_DELAY);                                   // data send to tx queue, start transmit
-    xEventGroupWaitBits(hbs_tx_event_group, hbs_TX_DONE_BIT, pdTRUE, pdFALSE, portMAX_DELAY); // all data transmitted
+    xEventGroupWaitBits(hbs_tx_event_group, HBS_TX_DONE_BIT, pdTRUE, pdFALSE, portMAX_DELAY); // all data transmitted
 }
 esp_err_t hbs_rx_packet(hbs_packet_t *packet, TickType_t wait_time)
 {
