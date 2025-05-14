@@ -37,7 +37,7 @@ static const char *TAG = "HBS RMT";
 
 #define RMT_RX_DIV (40) // 8
 
-#define RMT_RX_IDLE_THRES (3*1000*1000) // nanosek
+#define RMT_RX_IDLE_THRES (5*1000*1000) // nanosek
 #define RMT_RX_GLITCH_FILTER (1*1000)   //nanosek
 #define RX_BIT_DIVIDER (104)     // 1040
 #define RMT_RX_CLK_OUT (80 * 1000 * 1000 / RMT_RX_DIV)
@@ -135,6 +135,7 @@ static void hbs_rx_packet_task(void *p)
         .flags.en_partial_rx = true,
 #endif        
     };
+    ESP_LOGI(TAG,"size =%d",sizeof(items));
     while (1)
     {
         ESP_ERROR_CHECK(rmt_receive(rx_chan, items, sizeof(items), &receive_config));

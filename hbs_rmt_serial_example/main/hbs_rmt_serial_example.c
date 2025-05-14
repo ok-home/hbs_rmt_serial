@@ -118,7 +118,7 @@ void app_main(void)
 
     while (1)
     {
-        vTaskDelay(1);
+        vTaskDelay(10);
 #if DBG
         gpio_set_level(TX_TEST_GPIO, 1);
 #endif
