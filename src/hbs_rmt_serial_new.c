@@ -117,7 +117,7 @@ static bool rmt_rx_done_callback(rmt_channel_handle_t channel, const rmt_rx_done
     return high_task_wakeup == pdTRUE;
 }
 
-static rmt_item16_t items[MAX_HBS_PACKET_SIZE * BIT_IN_WORD + 2] = {0}; // for software glitch detect must be * 2
+static rmt_item16_t rmt_rx_items[MAX_HBS_PACKET_SIZE * BIT_IN_WORD + 2] = {0}; // for software glitch detect must be * 2
 static void hbs_rx_packet_task(void *p)
 {
     rmt_rx_done_event_data_t rx_data;
@@ -135,13 +135,12 @@ static void hbs_rx_packet_task(void *p)
         .flags.en_partial_rx = true,
 #endif        
     };
-    ESP_LOGI(TAG,"size =%d",sizeof(items));
     while (1)
     {
-        ESP_ERROR_CHECK(rmt_receive(rx_chan, items, sizeof(items), &receive_config));
+        ESP_ERROR_CHECK(rmt_receive(rx_chan, rmt_rx_items, sizeof(rmt_rx_items), &receive_config));
         if (xQueueReceive(receive_queue, &rx_data, portMAX_DELAY) == pdTRUE)
         {
-            // ESP_LOGI(TAG, "receive %d symbols iptr = %p dptr = %p", rx_data.num_symbols, rx_data.received_symbols, items);
+            // ESP_LOGI(TAG, "receive %d symbols iptr = %p dptr = %p", rx_data.num_symbols, rx_data.received_symbols, rmt_rx_items);
 
             length = rx_data.num_symbols;
 
@@ -149,13 +148,12 @@ static void hbs_rx_packet_task(void *p)
             for (int i = 0; i < length; i++)
             {
 #if RX_INVERT_LVL
-                int lvl = (!items[i].level) & 1; // invert lvl
+                int lvl = (!rmt_rx_items[i].level) & 1; // invert lvl
 #else
-                int lvl = (items[i].level) & 1;
+                int lvl = (rmt_rx_items[i].level) & 1;
 #endif
-                //                int duration = (lvl == 1) ? (items[i].duration + RX_PULSE_HI_LVL_DELAY_COMPENSATION) / RX_BIT_DIVIDER : (items[i].duration - RX_PULSE_LOW_LVL_DELAY_COMPENSATION) / RX_BIT_DIVIDER;
-                int duration = (items[i].duration + RX_BIT_DIVIDER / 2) / RX_BIT_DIVIDER;
-                // ESP_LOGI(TAG, "%d lvl=%d, bit_in=%d,dur=%d", i, lvl, duration, items[i].duration);
+                int duration = (rmt_rx_items[i].duration + RX_BIT_DIVIDER / 2) / RX_BIT_DIVIDER;
+                // ESP_LOGI(TAG, "%d lvl=%d, bit_in=%d,dur=%d", i, lvl, duration, rmt_rx_items[i].duration);
                 if (cnt_bit == 0) // start bit
                 {
                     if (lvl == 0 && duration > 0 && duration < BIT_IN_WORD) // start bit
@@ -165,7 +163,7 @@ static void hbs_rx_packet_task(void *p)
                     }
                     else
                     {
-                        ESP_LOGE(TAG, "receive frame err START bit %d lvl=%d, bit_in=%d,dur=%d", i, lvl, duration, items[i].duration);
+                        ESP_LOGE(TAG, "receive frame err START bit %d lvl=%d, bit_in=%d,dur=%d", i, lvl, duration, rmt_rx_items[i].duration);
                     }
                 }
                 else if (duration == 0 || (cnt_bit + duration) > (BIT_IN_WORD - 1)) // last item && stop bit
@@ -235,10 +233,10 @@ static void hbs_item_to_rmt_item_cvt(rmt_item16_t *rmt_data, hbs_item16_t data)
     rmt_data[cnt].level = 0; // end transfer
     rmt_data[cnt].duration = 0;
 }
+static rmt_item16_t rmt_tx_items[MAX_HBS_PACKET_SIZE * BIT_IN_WORD + 2] = {0}; // for software glitch detect must be * 2
+
 static void hbs_tx_packet_task(void *p)
 {
-    rmt_symbol_word_t rmt_item[16]; // 16*2 -> 32 bit ( with 00 end transfer )
-    rmt_item16_t *rmt_data = (rmt_item16_t *)rmt_item;
     int cnt = 0;
     hbs_packet_t packet = {0};
     rmt_transmit_config_t rmt_tx_config = {
@@ -249,10 +247,10 @@ static void hbs_tx_packet_task(void *p)
         xQueueReceive(hbs_tx_packet_queue, &packet, portMAX_DELAY);
         for (cnt = 0; cnt < packet.packet_hdr.packet_size; cnt++)
         {
-            hbs_item_to_rmt_item_cvt(rmt_data, packet.packet_data[cnt]);
-            ESP_ERROR_CHECK(rmt_transmit(tx_chan_handle, tx_encoder, rmt_item, 64, &rmt_tx_config));
-            rmt_tx_wait_all_done(tx_chan_handle, portMAX_DELAY);
+            hbs_item_to_rmt_item_cvt(rmt_tx_items+(cnt*BIT_IN_WORD), packet.packet_data[cnt]);
         }
+        ESP_ERROR_CHECK(rmt_transmit(tx_chan_handle, tx_encoder, rmt_tx_items, sizeof(rmt_tx_items), &rmt_tx_config));
+        rmt_tx_wait_all_done(tx_chan_handle, portMAX_DELAY);
         xEventGroupSetBits(hbs_tx_event_group, HBS_TX_DONE_BIT);
     }
 }
