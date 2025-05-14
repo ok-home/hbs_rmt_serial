@@ -29,15 +29,15 @@
 
 #define DBG 1
 
-#if CONFIG_IDF_TARGET_ESP32C3
-#define RMT_TX_GPIO (3)//esp32 ->(23)
-#define RMT_RX_GPIO (4)//esp32 ->(22)
-#define TX_TEST_GPIO (5)//for c3 !! esp32->(25)
-#endif
+
 #if CONFIG_IDF_TARGET_ESP32
 #define RMT_TX_GPIO (23)//esp32 ->(23)
 #define RMT_RX_GPIO (22)//esp32 ->(22)
 #define TX_TEST_GPIO (25)//for c3 !! esp32->(25)
+#else   // esp32-c3 esp32-s3
+#define RMT_TX_GPIO (3)//esp32 ->(23)
+#define RMT_RX_GPIO (4)//esp32 ->(22)
+#define TX_TEST_GPIO (5)//for c3 !! esp32->(25)
 #endif
 
 

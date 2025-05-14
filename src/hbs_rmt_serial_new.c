@@ -130,7 +130,7 @@ static void hbs_rx_packet_task(void *p)
 
     rmt_receive_config_t receive_config = {
         .signal_range_min_ns = RMT_RX_GLITCH_FILTER,        // the shortest duration
-        .signal_range_max_ns = RMT_RX_IDLE_THRES            // the longest duration
+        .signal_range_max_ns = RMT_RX_IDLE_THRES,            // the longest duration
 #if SOC_RMT_SUPPORT_RX_PINGPONG        
         .flags.en_partial_rx = true,
 #endif        
