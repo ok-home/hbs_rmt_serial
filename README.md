@@ -1,4 +1,4 @@
-# Simple exchange according to the HBS standard (ESP32, ESP32C3)
+# Simple exchange according to the HBS standard (ESP32, ESP32C3, ESP32S3)
   - HBS - 22 BIT in message (01 - start, 01/11 - bit value, 01/11 - parity bit, 11 - stop bit)
   - 8-bit+parity/9600 baud only, using RMT 
   - maximum data packet size 32 hbs_item16_t records
