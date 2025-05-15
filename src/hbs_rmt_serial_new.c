@@ -107,7 +107,7 @@ static uint16_t decode_hbs_bit_data(uint32_t hbs_data_bit) // decode from hbs bi
     return data_parity;
 }
 
-static bool rmt_rx_done_callback(rmt_channel_handle_t channel, const rmt_rx_done_event_data_t *edata, void *user_data)
+static bool IRAM_ATTR rmt_rx_done_callback(rmt_channel_handle_t channel, const rmt_rx_done_event_data_t *edata, void *user_data)
 {
     BaseType_t high_task_wakeup = pdFALSE;
     QueueHandle_t receive_queue = (QueueHandle_t)user_data;
@@ -137,6 +137,10 @@ static void hbs_rx_packet_task(void *p)
     };
     while (1)
     {
+        cnt_byte = 0;
+        cnt_bit = 0; // wait next start bit
+        memset(&packet, 0, sizeof(packet));
+        memset(rmt_rx_items,0,sizeof(rmt_rx_items));
         ESP_ERROR_CHECK(rmt_receive(rx_chan, rmt_rx_items, sizeof(rmt_rx_items), &receive_config));
         if (xQueueReceive(receive_queue, &rx_data, portMAX_DELAY) == pdTRUE)
         {
@@ -190,9 +194,6 @@ static void hbs_rx_packet_task(void *p)
         packet.packet_hdr.packet_size = cnt_byte;
         // ESP_LOGI(TAG, "all item converted %d byte ",cnt_byte);
         xQueueSend(hbs_rx_packet_queue, &packet, portMAX_DELAY);
-        cnt_byte = 0;
-        cnt_bit = 0; // wait next start bit
-        memset(&packet, 0, sizeof(packet));
     }
 }
 static void hbs_item_to_rmt_item_cvt(rmt_item16_t *rmt_data, hbs_item16_t data)
