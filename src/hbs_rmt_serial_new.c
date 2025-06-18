@@ -250,7 +250,8 @@ static void hbs_tx_packet_task(void *p)
         {
             hbs_item_to_rmt_item_cvt(rmt_tx_items+(cnt*BIT_IN_WORD), packet.packet_data[cnt]);
         }
-        ESP_ERROR_CHECK(rmt_transmit(tx_chan_handle, tx_encoder, rmt_tx_items, sizeof(rmt_tx_items), &rmt_tx_config));
+//        ESP_ERROR_CHECK(rmt_transmit(tx_chan_handle, tx_encoder, rmt_tx_items, sizeof(rmt_tx_items), &rmt_tx_config));
+        ESP_ERROR_CHECK(rmt_transmit(tx_chan_handle, tx_encoder, rmt_tx_items, sizeof(rmt_item16_t)*(packet.packet_hdr.packet_size * BIT_IN_WORD), &rmt_tx_config));
         rmt_tx_wait_all_done(tx_chan_handle, portMAX_DELAY);
         xEventGroupSetBits(hbs_tx_event_group, HBS_TX_DONE_BIT);
     }
